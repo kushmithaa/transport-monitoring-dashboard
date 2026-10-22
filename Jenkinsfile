@@ -103,28 +103,19 @@ pipeline {
                 '''
             }
         }
-
         stage('Push Image') {
-            steps {
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'dockerhub',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )
-                ]) {
-                    powershell '''
-                    $ErrorActionPreference = "Stop"
-                    $env:DOCKER_PASS | docker login -u $env:DOCKER_USER --password-stdin
-                    if ($LASTEXITCODE -ne 0) {
-                        exit $LASTEXITCODE
-                    }
-                    '''
-
-                    bat "docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}"
-                    bat "docker push ${DOCKER_IMAGE}:latest"
-                }
+          steps {
+            withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+              powershell '''
+                Write-Host "User length: $($env:DOCKER_USER.Length) (expected 10)"
+                Write-Host "Token length: $($env:DOCKER_PASS.Length)"
+                $env:DOCKER_PASS | docker login -u $env:DOCKER_USER --password-stdin
+                if ($LASTEXITCODE -ne 0) { throw "Docker login failed" }
+                docker push "kushmithaa/transport-monitoring-dashboard:$env:BUILD_NUMBER"
+                if ($LASTEXITCODE -ne 0) { throw "Docker push failed" }
+              '''
             }
+          }
         }
 
         stage('Deploy to Kubernetes') {
